@@ -1,0 +1,43 @@
+{
+  "environment": {
+    "num_users": 20,
+    "num_resource_blocks": 50,
+    "total_bandwidth_mhz": 100.0,
+    "episode_length": 1000,
+    "timestep_duration_ms": 1.0,
+    "bandwidth_per_rb_mhz": 2.0
+  },
+  "channel": {
+    "fading_type": "rayleigh",
+    "rayleigh_scale": 1.0,
+    "noise_power_dbm": -100.0,
+    "tx_power_dbm": 30.0,
+    "path_loss_exponent": 2.5
+  },
+  "traffic": {
+    "arrival_rate_packets_per_ts": 2.0,
+    "packet_size_bits": 1000,
+    "max_queue_length": 100,
+    "variable_arrival_rate": true
+  },
+  "qos": {
+    "min_data_rate_mbps": 1.0,
+    "max_tolerable_delay_ms": 100.0,
+    "service_priority": 3
+  },
+  "reward": {
+    "throughput_weight": 0.4000000000000001,
+    "delay_weight": 0.30000000000000004,
+    "fairness_weight": 0.20000000000000004,
+    "queue_penalty_weight": 0.10000000000000002
+  },
+  "dqn": {
+    "learning_rate": 0.0001,
+    "buffer_size": 50000,
+    "batch_size": 64,
+    "gamma": 0.99,
+    "epsilon_start": 1.0,
+    "epsilon_end": 0.01,
+    "epsilon_decay": 0.995
+  }
+}

@@ -1,0 +1,19 @@
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+Wrapping the env with a `Monitor` wrapper
+Wrapping the env in a DummyVecEnv.
+Algorithm       | Throughput (Mbps)    | Delay (ms)           | Fairness       
+----------------------------------------------------------------------------------------------------
+Greedy_Queue    | 574.54 ±   0.65  |   0.99 ±   0.00  | 0.7961 ± 0.0203
+Greedy_Channel  | 106.08 ±   2.13  |   0.98 ±   0.00  | 0.7564 ± 0.1175
+PropFair        | 114.10 ±   0.28  |   0.97 ±   0.00  | 0.9086 ± 0.0039
+PSO             | 107.09 ±   3.10  |   0.98 ±   0.00  | 0.7064 ± 0.1616
+QPSO            | 115.33 ±   2.81  |   0.98 ±   0.00  | 0.6679 ± 0.1282
+DQN             | 107.30 ±   0.00  |   0.98 ±   0.00  | 0.7399 ± 0.0000
+QI-DQN          | 106.84 ±   0.00  |   0.98 ±   0.00  | 0.7101 ± 0.0000
