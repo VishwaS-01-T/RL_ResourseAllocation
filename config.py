@@ -78,7 +78,7 @@ class ChannelConfig:
     noise_power_dbm: float = -100.0
     tx_power_dbm: float = 30.0
     path_loss_exponent: float = 2.5
-    fading_correlation_time: int = 5  # Timesteps over which fading is correlated
+    fading_correlation_time: int = 10  # Timesteps over which fading is correlated
     
     def __post_init__(self):
         """Validate channel parameters."""

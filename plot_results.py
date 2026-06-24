@@ -69,18 +69,12 @@ def find_best_log_dir(logs_dir, prefix, target_steps=500000):
         [d for d in Path(logs_dir).iterdir() if d.is_dir() and d.name.startswith(prefix)],
         key=natural_sort_key
     )
-    
-    best_dir = None
-    best_entries = 0
-    
     for d in reversed(dirs):  # Check latest first
         data = load_tb_data(str(d), "rollout/ep_rew_mean")
         if data['steps']:
-            if len(data['steps']) > best_entries:
-                best_dir = str(d)
-                best_entries = len(data['steps'])
-    
-    return best_dir
+            return str(d)  # Return the latest valid run immediately
+            
+    return None
 
 
 def plot_learning_curves(logs_base_dir: str, output_path: str, scenario_label: str = "100 Users, 100 RBs, 100 MHz"):

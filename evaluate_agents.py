@@ -333,14 +333,20 @@ class PSO_Allocation(AllocationAlgorithm):
         """
         num_users = self.num_users
         
-        # Simple fitness: throughput gain - queue penalty
+        snr_obs = obs[4 * allocation]
         queue_obs = obs[4 * allocation + 1]
-        throughput_obs = obs[4 * allocation + 2]
+        tput_obs = obs[4 * allocation + 2]
+        
+        # Calculate true instantaneous capacity from SNR
+        snr_db = (snr_obs + 1) * 40 / 2 - 10
+        snr_linear = 10 ** (snr_db / 10)
+        rate = np.log2(1 + snr_linear)
         
         queue_length = (queue_obs + 1) * self.env.traffic_config.max_queue_length / 2
-        throughput = (throughput_obs + 1) * 100 / 2
+        tput = (tput_obs + 1) * 100 / 2
         
-        fitness = throughput - 0.1 * queue_length
+        # True optimization: Maximize instantaneous rate, prioritize longest queue, penalize historical hoarding
+        fitness = (rate * queue_length) / (tput + 1e-6)
         return fitness
     
     def get_action(self, obs: np.ndarray) -> int:
@@ -353,6 +359,14 @@ class PSO_Allocation(AllocationAlgorithm):
         Returns:
             Best allocation from PSO
         """
+        # Reset swarm for the current new state (since environment is dynamic)
+        self.particles = np.random.randint(0, self.num_users, self.num_particles)
+        self.velocities = np.random.randn(self.num_particles)
+        self.best_position = self.particles.copy()
+        self.best_fitness = np.full(self.num_particles, -np.inf)
+        self.global_best = 0
+        self.global_best_fitness = -np.inf
+        
         # PSO iterations
         for iteration in range(self.iterations):
             # Evaluate fitness
@@ -462,19 +476,31 @@ class QPSO_Allocation(AllocationAlgorithm):
             allocation: User ID to allocate to
             obs: Current observation
         """
-        # Fitness formula balancing instantaneous throughput and queue backlog urgency
+        snr_obs = obs[4 * allocation]
         queue_obs = obs[4 * allocation + 1]
-        throughput_obs = obs[4 * allocation + 2]
+        tput_obs = obs[4 * allocation + 2]
+        
+        # Calculate true instantaneous capacity from SNR
+        snr_db = (snr_obs + 1) * 40 / 2 - 10
+        snr_linear = 10 ** (snr_db / 10)
+        rate = np.log2(1 + snr_linear)
         
         queue_length = (queue_obs + 1) * self.env.traffic_config.max_queue_length / 2
-        throughput = (throughput_obs + 1) * 100 / 2
+        tput = (tput_obs + 1) * 100 / 2
         
-        # Higher throughput and longer queue (need to service) increases fitness
-        fitness = throughput + 0.5 * queue_length
+        # True optimization: Maximize instantaneous rate, prioritize longest queue, penalize historical hoarding
+        fitness = (rate * queue_length) / (tput + 1e-6)
         return fitness
         
     def get_action(self, obs: np.ndarray) -> int:
         """Get QPSO action: run quantum swarm updates and return best action."""
+        # Reset quantum swarm for the current new state (since environment is dynamic)
+        self.particles = np.random.randint(0, self.num_users, self.num_particles).astype(float)
+        self.best_position = self.particles.copy()
+        self.best_fitness = np.full(self.num_particles, -np.inf)
+        self.global_best = 0.0
+        self.global_best_fitness = -np.inf
+        
         for iteration in range(self.iterations):
             # Evaluate fitness of each particle's current position
             fitness = np.array([
@@ -727,7 +753,7 @@ def main():
     comparator.register_algorithm("PSO", PSO_Allocation, num_particles=10, iterations=3)
     
     # Register Quantum-behaved Particle Swarm Optimization (QPSO)
-    comparator.register_algorithm("QPSO", QPSO_Allocation, num_particles=10, iterations=3)
+    comparator.register_algorithm("QPSO", QPSO_Allocation, num_particles=30, iterations=15)
     
     # Dynamically search and register trained DQN and QI-DQN models if they exist
     models_dir = Path("./models")

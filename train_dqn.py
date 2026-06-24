@@ -21,13 +21,14 @@ import argparse
 import numpy as np
 from pathlib import Path
 from datetime import datetime
+import time
 import logging
 from typing import Tuple, Dict
 
 # Stable-Baselines3 imports
 from stable_baselines3 import DQN
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, BaseCallback, CallbackList, EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
 from config import Config
@@ -147,22 +148,25 @@ def train_dqn(
     exp_final_eps = 0.01
     target_update = 1000
     grad_norm = 10.0
+    gamma = 0.8  # Reduced gamma to prioritize immediate queue clearing in chaotic environments
     
-    # Setup policy_kwargs and specific hyperparameters for Quantum-Inspired model
-    policy_kwargs = None
+    # Setup policy_kwargs and specific hyperparameters
+    policy_kwargs = dict(net_arch=[512, 512])  # Larger capacity to learn 100-user argmax
+    
     if algo == "qi-dqn":
         from qi_dqn import QuantumInspiredFeaturesExtractor
         policy_kwargs = dict(
             features_extractor_class=QuantumInspiredFeaturesExtractor,
-            features_extractor_kwargs=dict(features_dim=256)
+            features_extractor_kwargs=dict(features_dim=512),
+            net_arch=[512, 512]
         )
-        # Apply QI-DQN specific stabilizing hyperparameters
-        learning_rate = 1e-5
-        exp_fraction = 0.5
-        exp_final_eps = 0.05
-        target_update = 2000
-        grad_norm = 0.5
-        logger.info("Configured policy with Quantum-Inspired Features Extractor and Stabilized Hyperparameters.")
+        # Restore fast learning and normal exploration so it actually finishes learning in 300k steps
+        learning_rate = 1e-4
+        exp_fraction = 0.1
+        exp_final_eps = 0.01
+        target_update = 1000
+        grad_norm = 0.5  # Keep clipping active to prevent quantum gradient explosions
+        logger.info("Configured policy with Quantum-Inspired Features Extractor and matched hyperparameters.")
         
     # Create DQN model
     model = DQN(
@@ -171,13 +175,13 @@ def train_dqn(
         learning_rate=learning_rate,
         buffer_size=50000,
         batch_size=64,
-        gamma=0.99,
+        gamma=gamma,
         exploration_fraction=exp_fraction,
         exploration_initial_eps=1.0,
         exploration_final_eps=exp_final_eps,
         target_update_interval=target_update,
         max_grad_norm=grad_norm,
-        verbose=1,
+        verbose=0,  # Turn off standard spam
         tensorboard_log=str(log_path),
         policy_kwargs=policy_kwargs,
         seed=seed,
@@ -195,14 +199,34 @@ def train_dqn(
         name_prefix=model_name
     )
     
+    class CustomPrintCallback(BaseCallback):
+        def __init__(self, print_freq: int):
+            super().__init__()
+            self.print_freq = print_freq
+            self.last_time = time.time()
+            self.last_timesteps = 0
+            
+        def _on_step(self) -> bool:
+            if self.num_timesteps > 0 and self.num_timesteps % self.print_freq == 0:
+                current_time = time.time()
+                elapsed = current_time - self.last_time
+                fps = int((self.num_timesteps - self.last_timesteps) / elapsed)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] --> Training progress: {self.num_timesteps} timesteps completed. (FPS: {fps})", flush=True)
+                self.last_time = current_time
+                self.last_timesteps = self.num_timesteps
+            return True
+            
+    print_callback = CustomPrintCallback(print_freq=100000)
+    callback_list = CallbackList([checkpoint_callback, print_callback])
+    
     logger.info(f"Training model: {model_name}")
     logger.info(f"Saving to: {model_path}")
     
     # Train
     model.learn(
         total_timesteps=total_timesteps,
-        callback=checkpoint_callback,
-        log_interval=10,
+        callback=callback_list,
+        log_interval=10,  # High resolution for TensorBoard!
         tb_log_name=model_name
     )
     

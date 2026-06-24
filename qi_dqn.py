@@ -54,13 +54,13 @@ class QuantumInspiredFeaturesExtractor(BaseFeaturesExtractor):
             for _ in range(self.num_layers)
         ])
         
-        # Post-measurement classical projection network
-        self.classical_net = nn.Sequential(
-            nn.Linear(obs_dim, features_dim),
-            nn.ReLU(),
-            nn.Linear(features_dim, features_dim),
-            nn.ReLU()
-        )
+        # Instead of stacking 2 extra deep dense layers before the Q-network (which causes 
+        # vanishing gradients in a 5-layer deep DQN), we just use a single linear projection 
+        # or an identity mapping to pass the quantum features directly to the [512, 512] Q-network.
+        if obs_dim == features_dim:
+            self.classical_net = nn.Identity()
+        else:
+            self.classical_net = nn.Linear(obs_dim, features_dim)
         
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # observations shape: (batch_size, obs_dim) where values are in [-1, 1]
