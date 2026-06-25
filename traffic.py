@@ -17,6 +17,7 @@ Date: 2024
 import numpy as np
 from typing import List, Tuple, Dict
 from dataclasses import dataclass, field
+import collections
 import logging
 
 logger = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ class UserTraffic:
     total_delay: float = 0.0
     packet_age: int = 0  # Age of oldest packet in queue
     last_service_time: float = 0.0
+    packet_arrival_times: collections.deque = field(default_factory=collections.deque)
 
 
 class TrafficGenerator:
@@ -136,19 +138,14 @@ class TrafficGenerator:
         
         return arrivals
     
-    def step(self, allocated_bandwidth_mbps: List[float]) -> Dict:
+    def step(self, allocated_bandwidth_mbps: np.ndarray, current_step: int = 0) -> Dict:
         """
-        Execute one timestep of traffic dynamics.
-        
-        Process:
-        1. Generate Poisson arrivals for each user
-        2. Add arrivals to queue
-        3. Service packets based on allocated bandwidth and channel capacity
-        4. Update queue statistics
+        Advance traffic simulation by one timestep.
         
         Args:
             allocated_bandwidth_mbps: List of bandwidth (Mbps) allocated to each user
                                      (obtained from channel model)
+            current_step: Current simulation timestep
         
         Returns:
             Dictionary with traffic statistics:
@@ -177,6 +174,9 @@ class TrafficGenerator:
             packets_added = min(num_arrivals, queue_space)
             dropped_packets = num_arrivals - packets_added
             user.queue_length += packets_added
+            for _ in range(packets_added):
+                user.packet_arrival_times.append(current_step)
+            
             queue_drops.append(dropped_packets)
             
             # Calculate service (packets that can be transmitted)
@@ -198,18 +198,18 @@ class TrafficGenerator:
             
             # Update delay statistics
             if packets_serviced > 0:
-                # Simplified delay model: average wait time in queue
-                # More sophisticated: track individual packet delays
-                avg_wait = user.packet_age if user.packet_age > 0 else 0
-                user.total_delay += avg_wait * packets_serviced
-                user.last_service_time = packets_serviced
+                batch_delay = 0
+                for _ in range(packets_serviced):
+                    arrival_time = user.packet_arrival_times.popleft()
+                    batch_delay += (current_step - arrival_time)
+                user.total_delay += batch_delay
+                user.last_service_time = current_step
                 
-                # Reduce packet age (they've been waiting)
-                user.packet_age = max(0, user.packet_age - packets_serviced)
-            
-            # Increase age of remaining packets
-            if user.queue_length > 0:
-                user.packet_age += 1
+            # Update oldest packet age for reporting
+            if len(user.packet_arrival_times) > 0:
+                user.packet_age = current_step - user.packet_arrival_times[0]
+            else:
+                user.packet_age = 0
             
             departures.append(packets_serviced)
         
@@ -297,6 +297,7 @@ class TrafficGenerator:
             user.total_delay = 0.0
             user.packet_age = 0
             user.last_service_time = 0.0
+            user.packet_arrival_times.clear()
         
         # Regenerate arrival rate multipliers if variable
         if self.config.variable_arrival_rate:

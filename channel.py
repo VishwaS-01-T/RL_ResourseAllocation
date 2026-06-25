@@ -155,6 +155,11 @@ class ChannelModel:
         
         self.fading_gains[user_id] = fading
         return fading
+        
+    def step(self):
+        """Advance channel state by one timestep, updating fading for all users."""
+        for user_id in range(self.num_users):
+            self._generate_rayleigh_fading(user_id)
     
     def compute_capacity(self, bandwidth_mhz: float, user_id: int) -> float:
         """
@@ -194,8 +199,8 @@ class ChannelModel:
         Returns:
             ChannelState object with all channel parameters
         """
-        # Generate Rayleigh fading
-        fading_gain = self._generate_rayleigh_fading(user_id)
+        # Get current fading gain (do not regenerate on read!)
+        fading_gain = self.fading_gains[user_id]
         
         # Compute received power: P_rx = P_tx × |h|²
         received_power_linear = self.tx_power_linear * (fading_gain ** 2)

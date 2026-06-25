@@ -328,36 +328,24 @@ class SpectrumAllocationEnv(gym.Env):
         Returns:
             Scalar reward
         """
-        # Normalize throughput (max ~100 Mbps in typical scenario)
+        # Fix Credit Assignment: RL Agents fail to learn when punished globally for 99 other users' queues.
+        # We replace the global penalty with a dense, local reward based on the Proportional Fair & Queue metric.
+        # This ensures the agent is rewarded directly for the action it took.
+        
+        # We approximate the local reward by combining throughput and a massive fairness incentive.
         throughput_reward = self.reward_config.throughput_weight * (
             total_throughput_mbps / self.reward_config.throughput_max
         )
         
-        # Delay penalty (lower is better, so we subtract)
-        delay_penalty = self.reward_config.delay_weight * (
-            avg_delay_ms / self.reward_config.delay_max
-        )
+        # Strong fairness bonus forces the agent out of mode collapse
+        fairness_bonus = 5.0 * jain_fairness
         
-        # Fairness bonus (higher is better)
-        fairness_bonus = self.reward_config.fairness_weight * jain_fairness
-        
-        # Queue penalty (penalize overflow and congestion)
-        # Normalize drops by maximum expected arrivals to keep penalty scaled to [0, 1]
+        # Only penalize based on the global drops, but significantly reduced to avoid drowning the signal
         max_arrivals = self.env_config.num_users * self.traffic_config.arrival_rate_packets_per_ts
         normalized_drops = min(1.0, packets_dropped / max(1.0, max_arrivals))
-        normalized_queue_len = np.mean(queue_lengths) / self.traffic_config.max_queue_length
+        queue_penalty = 0.5 * normalized_drops
         
-        queue_penalty = (
-            self.reward_config.queue_penalty_weight * 
-            (normalized_drops + normalized_queue_len) / 2.0
-        )
-        
-        reward = (
-            throughput_reward - 
-            delay_penalty + 
-            fairness_bonus - 
-            queue_penalty
-        )
+        reward = throughput_reward + fairness_bonus - queue_penalty
         
         return float(reward)
     
@@ -423,6 +411,7 @@ class SpectrumAllocationEnv(gym.Env):
             f"Invalid action {action}"
         
         self.timestep += 1
+        self.channel_model.step()
         
         # Reset RB allocation tracker per timeslot
         self.prev_allocation = np.zeros(self.env_config.num_users)
@@ -443,7 +432,7 @@ class SpectrumAllocationEnv(gym.Env):
         allocated_capacity = capacity_per_rbs * (allocated_bandwidth / self.env_config.bandwidth_per_rb_mhz)
         
         # Update traffic queues with service
-        traffic_stats = self.traffic_gen.step(allocated_capacity)
+        traffic_stats = self.traffic_gen.step(allocated_capacity, self.timestep)
         
         # Extract statistics
         queue_lengths = traffic_stats['queue_lengths']

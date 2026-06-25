@@ -137,9 +137,11 @@ def train_dqn(
     # Create environment(s)
     if n_envs > 1:
         from stable_baselines3.common.vec_env import SubprocVecEnv
-        def make_env_fn():
-            return create_env(config, seed=seed)
-        env = make_vec_env(make_env_fn, n_envs=n_envs, vec_env_cls=SubprocVecEnv)
+        def make_env(rank: int, base_seed: int):
+            def _init():
+                return create_env(config, seed=base_seed + rank)
+            return _init
+        env = SubprocVecEnv([make_env(i, seed) for i in range(n_envs)])
     else:
         env = create_env(config, seed=seed)
     
@@ -148,7 +150,7 @@ def train_dqn(
     exp_final_eps = 0.01
     target_update = 1000
     grad_norm = 10.0
-    gamma = 0.8  # Reduced gamma to prioritize immediate queue clearing in chaotic environments
+    gamma = config.dqn.gamma  # Use config's gamma
     
     # Setup policy_kwargs and specific hyperparameters
     policy_kwargs = dict(net_arch=[512, 512])  # Larger capacity to learn 100-user argmax
@@ -165,7 +167,7 @@ def train_dqn(
         exp_fraction = 0.1
         exp_final_eps = 0.01
         target_update = 1000
-        grad_norm = 0.5  # Keep clipping active to prevent quantum gradient explosions
+        grad_norm = 10.0  # Equalize with DQN for fair comparison
         logger.info("Configured policy with Quantum-Inspired Features Extractor and matched hyperparameters.")
         
     # Create DQN model

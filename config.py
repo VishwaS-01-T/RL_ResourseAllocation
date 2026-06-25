@@ -191,7 +191,7 @@ class RewardConfig:
     normalize_reward: bool = True
     
     # Normalization bounds for each component
-    throughput_max: float = 1000.0  # Mbps
+    throughput_max: float = 150.0  # Mbps
     delay_max: float = 500.0  # ms
     
     def __post_init__(self):
