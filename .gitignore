@@ -26,3 +26,6 @@ plots/
 
 # Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+
+agent_context.md
+ProjectDetails.md
