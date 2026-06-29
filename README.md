@@ -580,10 +580,10 @@ This project is licensed under the MIT License. See LICENSE file for details.
 
 For questions, issues, or suggestions:
 - Open an issue on GitHub
-- Contact: your.email@institution.edu
+- Contact: vsingh7_be24@thapar.edu
 
 ---
 
 **Last Updated:** 2026  
-**Maintained By:** Research Team  
+**Maintained By:** Vishwas
 **Status:** Active Development
