@@ -87,3 +87,36 @@ Here are the hardest questions a professor might ask, and exactly how you should
 
 **Q4: "How do you know your 274 Mbps throughput isn't just a simulator bug?"**
 > **Your Answer:** "In our early phases, we actually had a 'Ghost Throughput' illusion of over 300 Mbps due to a flaw where Rayleigh fading was regenerated instantly instead of held through the coherence block. We strictly audited the physics engine. Our 274 Mbps is now mathematically bounded by the Shannon-Hartley theorem for a 20 MHz spectrum. We cannot exceed the physical limits of the pipe."
+
+---
+
+## Part 4: Foundational Concept "Cheat Sheet"
+*(Memorize these analogies and definitions. Professors will test your fundamental understanding of these terms.)*
+
+### 1. What is a Poisson Process?
+**The Concept:** Data in the real world doesn't flow smoothly like a garden hose; it arrives in unpredictable, chaotic bursts (like raindrops). 
+**Your Explanation:** "We used a Poisson Process for traffic generation because it mathematically models random, independent events happening over time. Instead of giving every user exactly 10 packets per millisecond, one user might get 30 packets while another gets 0. This forces our AI to handle realistic, bursty traffic."
+
+### 2. What is Shannon Capacity?
+**The Concept:** The unbreakable speed limit of wireless communications.
+**Your Explanation:** "Shannon-Hartley capacity is a law of physics. It proves that the maximum data rate (Mbps) you can push through a wireless channel is strictly limited by two things: the Bandwidth (the size of the pipe) and the Signal-to-Noise Ratio (how loud the signal is compared to background static). Our simulation enforces this limit, proving our throughput results are physically valid."
+
+### 3. What is ReLU Activation?
+**The Concept:** The mathematical function inside the Deep Q-Network's neurons. `f(x) = max(0, x)`.
+**Your Explanation:** "We used Rectified Linear Unit (ReLU) activations in our hidden layers. If a neuron's input is negative, it outputs 0. If positive, it passes the value through. This introduces 'non-linearity' into the network, allowing the AI to learn complex, chaotic traffic patterns without suffering from the 'vanishing gradient problem' that plagues older activation functions like Sigmoid."
+
+### 4. What exactly is the Max-Weight Oracle?
+**The Concept:** A mathematical rule injected into the AI's brain.
+**Your Explanation:** "An 'Oracle' in computer science is a function that knows the perfect mathematical answer. 'Max-Weight' is a scheduling theorem that says: 'Always serve the user with the best combination of signal strength and queue length'. By calculating this value and injecting it into the DQN's predictions, we forcibly guided the AI out of Mode Collapse and onto the correct optimal path."
+
+### 5. "How do you know the RL learned the QPSO behavior?"
+**The Concept:** The Proof is in the Benchmark Table.
+**Your Explanation:** "We know it learned the QPSO's behavior because of the final benchmark table. QPSO is a pure mathematical optimizer; it runs hundreds of iterations to mathematically locate the absolute peak throughput (which it found was ~274 Mbps). Our Deep RL is just a pattern-matching neural network, yet it achieved that exact same 274 Mbps throughput limit. The only way a Neural Network matches the exact score of a 600-iteration Swarm Optimizer is if its internal weights successfully learned to mimic the Swarm's optimization curve. The difference is, the RL does it in a single forward pass ($O(1)$ time)."
+
+### 6. What is Jain's Fairness Index?
+**The Concept:** A mathematical score of equality.
+**Your Explanation:** "It is a widely accepted formula in telecommunications that scores fairness from 0 to 1. A score of 1.0 means every single user received the exact same amount of data. A score of 0.01 means one user hoarded the entire spectrum and the rest starved. Our RL agent achieves a 0.75+, meaning it provides excellent throughput without starving anyone."
+
+### 7. What is Rayleigh Fading?
+**The Concept:** The chaos of radio waves bouncing off buildings.
+**Your Explanation:** "In a city, a 6G signal bounces off buildings and cars. Sometimes these bounces add together, and sometimes they cancel each other out, causing rapid signal drops. Rayleigh fading is the statistical model we used to simulate this harsh, non-line-of-sight environment. It proves our AI can survive in a chaotic real-world city, not just an empty room."

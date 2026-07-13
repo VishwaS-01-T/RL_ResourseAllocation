@@ -665,6 +665,117 @@ class AlgorithmComparator:
         
         logger.info("="*100)
 
+class Teammate_PSO_Allocation(AllocationAlgorithm):
+    def __init__(self, env: SpectrumAllocationEnv, name: str = "Teammate_PSO", num_particles: int = 20, iterations: int = 50):
+        super().__init__(env, name)
+        self.num_particles = num_particles
+        self.iterations = iterations
+        self.num_users = env.env_config.num_users
+        self.a = 0.9
+        self.b = 1.496
+        self.b_hat = 1.496
+        self.c = 0.5
+
+    def get_action(self, obs: np.ndarray) -> int:
+        N, D, S, n_iter = self.num_particles, 1, self.num_users - 1, self.iterations
+        a, b, b_hat, c = self.a, self.b, self.b_hat, self.c
+        
+        def f(x):
+            allocation = int(np.clip(np.round(x[0]), 0, S))
+            snr_obs = obs[4 * allocation]
+            queue_obs = obs[4 * allocation + 1]
+            tput_obs = obs[4 * allocation + 2]
+            
+            snr_db = (snr_obs + 1) * 40 / 2 - 10
+            snr_linear = 10 ** (snr_db / 10)
+            rate = np.log2(1 + snr_linear)
+            queue_length = (queue_obs + 1) * self.env.traffic_config.max_queue_length / 2
+            tput = (tput_obs + 1) * 100 / 2
+            
+            return -(rate * queue_length) / (tput + 1e-6)
+
+        x = np.random.uniform(0, S, size=(N, D))
+        v = np.random.normal(size=(N, D))
+        p = x.copy()
+        fp = np.array([f(p[i]) for i in range(N)])
+        p_hat = x[np.argmin(fp)].copy()
+        fp_hat = f(p_hat)
+
+        for i in range(n_iter):
+            r = np.random.uniform(0, 1, (N, D))
+            r_hat = np.random.uniform(0, 1, (N, D))
+            v = a*v + b*r*(p-x) + b_hat*r_hat*(p_hat-x)
+            x = x + c*v
+            x = np.clip(x, 0, S)
+
+            for n in range(N):
+                xn = x[n]
+                fxn = f(xn)
+                fpn = fp[n]
+                if fxn < fpn:
+                    p[n] = xn.copy()
+                    fp[n] = fxn
+                    if fxn < fp_hat:
+                        p_hat = xn.copy()
+                        fp_hat = fxn
+                        
+        return int(np.clip(np.round(p_hat[0]), 0, S))
+
+class Teammate_QPSO_Allocation(AllocationAlgorithm):
+    def __init__(self, env: SpectrumAllocationEnv, name: str = "Teammate_QPSO", num_particles: int = 20, iterations: int = 50):
+        super().__init__(env, name)
+        self.num_particles = num_particles
+        self.iterations = iterations
+        self.num_users = env.env_config.num_users
+        self.beta_start = 0.25
+        self.beta_end = 0.65
+        
+    def get_action(self, obs: np.ndarray) -> int:
+        N, D, S, n_iter = self.num_particles, 1, self.num_users - 1, self.iterations
+        
+        def f(x):
+            allocation = int(np.clip(np.round(x[0]), 0, S))
+            snr_obs = obs[4 * allocation]
+            queue_obs = obs[4 * allocation + 1]
+            tput_obs = obs[4 * allocation + 2]
+            
+            snr_db = (snr_obs + 1) * 40 / 2 - 10
+            snr_linear = 10 ** (snr_db / 10)
+            rate = np.log2(1 + snr_linear)
+            queue_length = (queue_obs + 1) * self.env.traffic_config.max_queue_length / 2
+            tput = (tput_obs + 1) * 100 / 2
+            
+            return -(rate * queue_length) / (tput + 1e-6)
+
+        x = np.random.uniform(0, S, size=(N, D))
+        p = x.copy()
+        fp = np.array([f(p[i]) for i in range(N)])
+        p_hat = x[np.argmin(fp)].copy()
+        fp_hat = f(p_hat)
+
+        for i in range(n_iter):
+            beta = self.beta_start - (self.beta_start - self.beta_end) * i / n_iter
+            mbest = np.mean(p, axis=0)
+            phi = np.random.uniform(0, 1, (N, D))
+            p_local = phi * p + (1 - phi) * p_hat
+            u = np.random.uniform(1e-12, 1, (N, D))
+            sign = 2 * np.random.randint(0, 2, size=(N, D)) - 1
+            x = p_local + sign * beta * np.abs(mbest - x) * np.log(1/u)
+            x = np.clip(x, 0, S)
+
+            for n in range(N):
+                xn = x[n]
+                fxn = f(xn)
+                fpn = fp[n]
+                if fxn < fpn:
+                    p[n] = xn.copy()
+                    fp[n] = fxn
+                    if fxn < fp_hat:
+                        p_hat = xn.copy()
+                        fp_hat = fxn
+                        
+        return int(np.clip(np.round(p_hat[0]), 0, S))
+
 
 def main(config: Config = None):
     """Main evaluation script."""
@@ -678,7 +789,9 @@ def main(config: Config = None):
     comparator.register_algorithm("Greedy_Queue", GreedyAllocation)
     comparator.register_algorithm("Greedy_Channel", GreedyChannelAllocation)
     comparator.register_algorithm("PropFair", ProportionalFairAllocation)
-    comparator.register_algorithm("PSO", PSO_Allocation, num_particles=10, iterations=3)
+    comparator.register_algorithm("My_PSO", PSO_Allocation, num_particles=10, iterations=3)
+    comparator.register_algorithm("His_PSO", Teammate_PSO_Allocation, num_particles=20, iterations=50)
+    comparator.register_algorithm("His_QPSO", Teammate_QPSO_Allocation, num_particles=20, iterations=50)
     
     # Register Quantum-Inspired Grover Search
     comparator.register_algorithm("Q-Grover", QGrover_Allocation)
